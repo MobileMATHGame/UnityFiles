@@ -11,15 +11,16 @@ public class CreateLevel : MonoBehaviour
     public bool Editing;
 
     [HideInInspector]
-    [SerializeField]
-    public Hashtable Cells;
+    public List<Vector2> Cells;
 
+    [HideInInspector]
+    public List<GameObject> Spots;
 
     public void Addcell(Vector2 deltaPos)
     {
-        if (Cells == null) { Cells = new Hashtable(); }
+        if (Cells == null) { Cells = new List<Vector2>(); Spots = new List<GameObject>();  }
         deltaPos.x = (int)Mathf.Floor(deltaPos.x / CellSize);
-        deltaPos.y = (int)Mathf.Floor(-deltaPos.y / CellSize);
+        deltaPos.y = (int)Mathf.Floor(deltaPos.y / CellSize);
         if (!Cells.Contains(deltaPos))
         {
             
@@ -31,30 +32,41 @@ public class CreateLevel : MonoBehaviour
             rt.localScale = Vector3.one;
             rt.sizeDelta = Vector2.one * CellSize;
             rt.localPosition = deltaPos * CellSize + (Vector2.one * CellSize / 2f);
-            Cells.Add(deltaPos, g);
+            Cells.Add(deltaPos);
+            Spots.Add(g);
         }
     }
 
     public void Removecell(Vector2 deltaPos)
     {
-        if (Cells == null) { Cells = new Hashtable(); return; }
+        if (Cells == null) { Cells = new List<Vector2>(); Spots = new List<GameObject>(); return; }
         deltaPos.x = (int)Mathf.Floor(deltaPos.x / CellSize);
-        deltaPos.y = (int)Mathf.Floor(-deltaPos.y / CellSize);
+        deltaPos.y = (int)Mathf.Floor(deltaPos.y / CellSize);
         if (Cells.Contains(deltaPos))
         {
-            DestroyImmediate((GameObject)Cells[deltaPos]);
+            int i = Cells.FindIndex((x) => x == deltaPos);
+            DestroyImmediate(Spots[i]);
             Cells.Remove(deltaPos);
+            Spots.RemoveAt(i);
         }
     }
 
     public void ClearLevel()
     {
-        if (Cells == null) { Cells = new Hashtable(); return; }
+        if (Cells == null) { Cells = new List<Vector2>(); Spots = new List<GameObject>(); return; }
         Cells.Clear();
+        Spots.Clear();
         while (transform.childCount > 0)
         {
             DestroyImmediate(transform.GetChild(0).gameObject);
         }
+    }
+
+    public void SaveLevel()
+    {
+        Debug.Log(JsonUtility.ToJson(Cells));
+        TextAsset tA = new TextAsset(JsonUtility.ToJson(Cells));
+        AssetDatabase.CreateAsset(tA, AssetDatabase.GenerateUniqueAssetPath("Assets/Resources/Levels/Level"));
     }
 
 }
@@ -69,7 +81,11 @@ public class E_CreateLevel : Editor
         {
             ((CreateLevel)target).ClearLevel();
         }
-        
+        if (GUILayout.Button("Save"))
+        {
+            ((CreateLevel)target).SaveLevel();
+        }
+
     }
 
     public void OnSceneGUI()
@@ -78,12 +94,12 @@ public class E_CreateLevel : Editor
         if(creator.Editing)
         {
             Event e = Event.current;
-            if (e.type == EventType.MouseDown)
+            if (e.type == EventType.MouseDown && (!e.control && !e.alt))
             {
                 if (e.button == 0)
                 {
                     RaycastHit hit;
-                    if(Physics.Raycast(Camera.current.ScreenPointToRay(e.mousePosition), out hit))
+                    if(Physics.Raycast(HandleUtility.GUIPointToWorldRay(e.mousePosition), out hit))
                     {
                         if (hit.transform.GetComponent<CreateLevel>() != null)
                         {
@@ -95,7 +111,7 @@ public class E_CreateLevel : Editor
                 else if (e.button == 1)
                 {
                     RaycastHit hit;
-                    if (Physics.Raycast(Camera.current.ScreenPointToRay(e.mousePosition), out hit))
+                    if (Physics.Raycast(HandleUtility.GUIPointToWorldRay(e.mousePosition), out hit))
                     {
                         if (hit.transform.GetComponent<CreateLevel>() != null)
                         {
